@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h1>Restaurants</h1>
+  <%if (message != null) { %>
+  <p style="color: red;"><%= message %></p>
+  <% } %>
+	<table>
+	  <tr>
+	    <th>Name</th>
+	    <th>Latitude</th>
+	    <th>Longitude</th>
+	    <th>Description</th>
+	    <th>Creator</th>
+	  </tr>
+	  
+	  <% if (resDataList.length) {
+	  %>
+	    <% resDataList.forEach((resData) => {
+	    
+	    	  var str = resData.value;
+	    	  var formatStr = str.replace(/["{}]+/g, '');	//removes quotation marks and curly braces
+	    	  var latLonDesCreator = formatStr.split(",");
+	    	  var lat = latLonDesCreator[0].split(":")[1];
+	    	  var lon = latLonDesCreator[1].split(":")[1];
+	    	  var description = latLonDesCreator[2].split(":")[1];
+	    	  var creator = latLonDesCreator[3].split(":")[1];
+	    	  
+	      %>
+	      	<tr>
+		        <td><%= resData.key %></td>
+		        <td><%= lat %></td>
+		        <td><%= lon %></td>
+		        <td><%= description %></td>
+		        <td><%= creator %></td>
+		        
+		    </tr>
+	      <%
+	    }) %>
+	  <%
+	  } %>
+	  
+	  <tr>
+	    <td></td>
+	    <td></td>
+	    <td></td>
+	    <td></td>
+	    <td></td>
+	  </tr>
+	</table>
+
+	
+  <form action="/addrestaurant" method="post">
+  Add another restaurant!
+	  <div>
+	    <input type="text" name="name" placeholder="Name of Restaurant" required>
+	  </div>
+	  <div>
+	    <input type="text" name="latitude" placeholder="Latitude" required>
+	  </div>
+	  <div>
+	    <input type="text" name="longitude" placeholder="Longitude" required>
+	  </div>
+	  	  <div>
+	    <input type="text" name="description" placeholder="Description" required>
+	  </div>
+	
+	 
+	  <div>
+	    <input type="submit" value="Add">
+	  </div>
+  </form>
+  
+  <a href="/logout">Log out</a>
+ 
+</body>
+</html>

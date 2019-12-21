@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <h1>Restaurants</h1>
+  <%if (message != null) { %>
+  <p style="color: red;"><%= message %></p>
+  <% } %>
+	
+	<script type="text/javascript" src="http://maps.google.com/maps/api/js?key=AIzaSyABkF0KppXmx_KElJ7mbV5ClyCEBrGnBMI"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script type="text/javascript">
+      var map;
+
+      /* First, we define a function that creates a new Google Map and installs
+         it in the 'map' DIV (see the HTML part at the bottom). */
+
+      var loadMap = function()
+      {
+        var myOptions = {
+          center: new google.maps.LatLng(39.952335, -75.163789),
+          zoom: 11,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        };
+        map = new google.maps.Map(document.getElementById("map"), myOptions);
+        
+        //populates input latitude and longitude field when user clicks on a coordinate
+	    google.maps.event.addListener(map, 'click', function(event) {
+		    var latitude = event.latLng.lat();
+		    var longitude = event.latLng.lng();
+		    document.getElementById('latitude').value = latitude;
+		    document.getElementById('longitude').value = longitude;
+		});
+		
+		
+		
+		$.get('/getRestaurants', function(data) {
+	 
+		      var resDataList = JSON.parse(data);
+		      
+		      //extracts the current user who is logged in
+		      var currentUser = resDataList[0].username;
+		      
+		      //checks if there is actual data in the restaurant data list
+		      if (resDataList.length) {
+		  
+			    resDataList.forEach((resData) => {
+			    	
+			    	if (resData.hasOwnProperty("key")) {
+			    	  var str = resData.value;
+			    	  var formatStr = str.replace(/["{}]+/g, '');	//removes quotation marks and curly braces
+			    	  var latLonDesCreator = formatStr.split(",");
+			    	  var lat = latLonDesCreator[0].split(":")[1];
+			    	  var lon = latLonDesCreator[1].split(":")[1];
+			    	  var description = latLonDesCreator[2].split(":")[1];
+			    	  var creator = latLonDesCreator[3].split(":")[1];
+		    	  
+					} 
+	
+		            // Now we create a marker at the location that was specified by the data of each restaurant 
+		
+		            var myLatlng = new google.maps.LatLng(lat,lon);
+		            var marker = new google.maps.Marker({
+		                    position: myLatlng,
+		                    title: resData.key,
+		                    content: "<a href = " + resData.key + ">" + "</a>",
+		            });
+		
+		            marker.setMap(map);
+		            
+		            
+		           // Sets marker to yellow for the restaurants that are created by the user who is logged in
+		           
+		            if (currentUser == creator) {
+		            	console.log("same person");
+		            	marker.setIcon('http://maps.google.com/mapfiles/ms/icons/yellow-dot.png');
+		            }
+		           
+		            // Info that will be displayed in the window when someone clicks on the marker
+					
+		            var resName = '<b>' + resData.key + '</b>';
+		            var descriptionStr = '<div>' + description + '</div>';
+		            var creatorStr = '<div> <i> Added by ' + creator + '  </i> </div>';
+		          
+		            // Creating the info window (which is initially hidden)...
+	
+				    marker['infowindow'] = new google.maps.InfoWindow({
+					content: resName + descriptionStr + creatorStr,
+				    });
+	
+		            //'listener' function (that is added to the marker)is called when the marker is clicked on
+		            //opens the previously instantiated info window
+		
+				    google.maps.event.addListener(marker, 'click', function() {
+						this['infowindow'].open(map, this);
+				    });
+				    
+			    	//right-click 'listener' function 
+		            //removes marker and deletes restaurant from the database
+		            
+				    google.maps.event.addListener(marker, 'rightclick', function() {
+					    if (marker.icon == 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png') {
+					    	marker.setMap(null);
+					    	
+					    	$.post("/deleterestaurant",
+								{
+									name:resData.key,
+								},
+								function(data,status){
+									var deletedResData = data;
+							});
+					    	
+					    } else {
+					    	alert('Error: You can only delete restaurants that you have added!');
+					    }
+					    
+					});
+				    
+				    
+	          	 })
+	     	 }
+	     	 
+	      }, 'text');
+		
+		
+      };
+
+      /* We then assign this function to the 'onload' property of the main window,
+         so that it will be called as soon as the browser has finished loading the page. */
+
+      window.onload = loadMap;
+         
+    
+	//AJAX call to add new restaurant
+	//wait for document to completely load
+	$(document).ready(function(){
+		$("#addRestaurant").click(function(){
+			var inputName = $("#name").val();
+			var inputLat = $("#latitude").val();
+			var inputLon = $("#longitude").val();
+			var inputDesc = $("#description").val();
+			$.post("/addrestaurant",
+				{
+					//attributes to send over to the server
+					name: inputName,
+					latitude: inputLat,
+					longitude: inputLon,
+					description: inputDesc
+				},
+				function(data,status){
+					
+					//data:
+					//1)string containing information about new restaurant added 
+						//used to create the new marker 
+					//2)string specifying empty input fields
+						//error alert pop-up
+					
+					if (data == "Empty field error") {
+						alert("Please enter all input fields to add restaurant!");
+					} else {
+					
+						var info = data.split(" ");
+						var newName = info[0];
+						var newLat = info[1];
+						var newLon = info[2];
+						var newDesc = info[3];
+						var newCreator = info[4];
+						
+						
+						var newLatlng = new google.maps.LatLng(newLat, newLon);
+			            var newMarker = new google.maps.Marker({
+			                    position: newLatlng,
+			                    title: newName,
+			                    content: "<a href = " + newName + ">" + "</a>",
+			                    icon: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
+									    
+			            });
+			
+			            newMarker.setMap(map);
+			            
+			            // Info that will be displayed in the window when someone clicks on the marker
+				
+			            var newResName = '<b>' + newName + '</b>';
+			            var newDescriptionStr = '<div>' + newDesc + '</div>';
+			            var newCreatorStr = '<div> <i> Added by ' + newCreator + '  </i> </div>';
+			          
+			            // Creating the info window which is initially hidden
+		
+					    newMarker['infowindow'] = new google.maps.InfoWindow({
+							content: newResName + newDescriptionStr + newCreatorStr,
+					    });
+		
+			            //'listener' function (that is added to the marker)is called when the marker is clicked on
+			            //opens the previously instantiated info window
+			
+					    google.maps.event.addListener(newMarker, 'click', function() {
+							this['infowindow'].open(map, this);
+					    });
+					    
+					    //right-click 'listener' function 
+			            //removes marker and deletes restaurant from the database
+			            
+					    google.maps.event.addListener(newMarker, 'rightclick', function() {
+						    if (newMarker.icon == 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png') {
+						    	newMarker.setMap(null);
+						    	
+						    	$.post("/deleterestaurant",
+									{
+										name:resData.key,
+									},
+									function(data,status){
+										var deletedResData = data;
+								});
+						    	
+						    	
+						    } else {
+						    	alert(newMarker.icon);
+						    	alert('Error: You can only delete restaurants that you have added!');
+						    }
+						});
+						
+						
+					}
+		            
+		            
+		        //sends an pop-up alert message if AJAX fails   
+				}).fail(function() {
+						alert( "AJAX call failed" );
+				});
+				
+		});
+	});
+	
+	var refresh = function() {
+		loadMap();
+		setTimeout(refresh, 5000); /* 5s */
+	};
+	
+	$(document).ready(function() {
+		setTimeout(refresh, 5000); /* 5s */
+	});
+	
+  </script>
+  </head>
+	
+  <body>
+  
+	  <div id="map" style="width:800px;height:500px;"></div>
+	    <div class="modal-footer">
+	    </div>
+	    <div id="out"></div><p>
+	    
+
+		  Add another restaurant!
+			  <div>
+			    <input type="text" id = "name" name="name" placeholder="Name of Restaurant" required>
+			  </div>
+			  <div>
+			    <input type="text" id = "latitude" name="latitude" placeholder="Latitude" required>
+			  </div>
+			  <div>
+			    <input type="text" id = "longitude" name="longitude" placeholder="Longitude" required>
+			  </div>
+			  <div>
+			    <input type="text" id = "description" name="description" placeholder="Description" required>
+			  </div>
+			  <div>
+			    <input type="submit" id = "addRestaurant" value="Add">
+			  </div>
+
+  
+  <a href="/logout">Log out</a>
+ 
+</body>
+</html>
